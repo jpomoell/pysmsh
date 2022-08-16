@@ -1,0 +1,16 @@
+# Ignore bytecode files
+*.py[cod]
+
+# Ignore compiled C/C++ code
+*.so
+
+# Ignore data output
+*.vtr
+*.npz
+*.visit
+
+# Ignore Jupyter tmp
+.ipynb_checkpoints/
+
+# Ignore macOS Desktop Services files
+.DS_Store

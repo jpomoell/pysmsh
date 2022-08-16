@@ -1,0 +1,10 @@
+name: pysmsh
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.9
+  - multimethod=1.8
+  - numba=0.55
+  - numpy
+  - matplotlib
