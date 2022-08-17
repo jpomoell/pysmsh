@@ -7,7 +7,7 @@
 
 """Streamline tracer
 """
-
+import typing
 import numpy as np
 import numba
 import numba.types
@@ -35,22 +35,30 @@ class MidPointStreamLineTracer:
     min_step_size : numba.float64
     relative_step_size : numba.float64
     follow_field_direction : bool
-    
+    record_points : bool
+
+    integral : numba.float64
+
     domain_min : numba.types.Array(numba.float64, 1, "C")
     domain_max : numba.types.Array(numba.float64, 1, "C")
     _domain_extent_initialized : bool
 
+    points : numba.types.List(numba.types.Array(numba.types.float64, 1, "C")) 
+    
     def __init__(self, 
                  max_path_length, 
                  relative_step_size=1.0, 
                  follow_field_direction=True, 
-                 min_step_size=-1.0):
+                 min_step_size=-1.0, 
+                 record_points=False):
 
         self.max_path_length = max_path_length
 
         self.relative_step_size = relative_step_size
 
         self.follow_field_direction = follow_field_direction
+
+        self.record_points = record_points
 
         self.min_step_size = min_step_size
         if self.min_step_size < 0.0:
@@ -59,6 +67,10 @@ class MidPointStreamLineTracer:
         self._domain_extent_initialized = False
         self.domain_max = np.zeros(3)
         self.domain_min = np.zeros(3)
+
+        # Hack to easily create an empty list of the desired type
+        self.points = [np.zeros(3)]
+        self.points.clear()
 
     def is_inside_domain(self, pt):
         """Checks if the given point is inside the domain.
@@ -127,7 +139,7 @@ class MidPointStreamLineTracer:
         
         return v*t_min + xin
         
-    def compute(self, start_pt, interpolator):
+    def compute(self, start_pt, interpolator, integrand=None):
         """Computes the stream line
 
         Args:
@@ -151,6 +163,14 @@ class MidPointStreamLineTracer:
         # Break if point outside
         if not self.is_inside_domain(x):
             return x
+
+        # Record point
+        if self.record_points:
+            self.points.clear()
+            self.points.append(np.copy(x))
+
+        # Value of path integral
+        self.integral = 0.0
 
         # Scale each step by a constant
         direction = 1.0 if self.follow_field_direction else -1.0
@@ -185,7 +205,18 @@ class MidPointStreamLineTracer:
             # Add segment to path length
             path_length += np.abs(ds)
 
+            # Add contribution to path integral
+            if integrand is not None:
+                self.integral += np.abs(ds)*integrand.compute(xhalf)
+
             # Update point
             x = xnext
+
+            # Record
+            if self.record_points:
+                self.points.append(np.copy(x))
+
+        if self.record_points:
+            self.points.append(np.copy(x))
 
         return x
