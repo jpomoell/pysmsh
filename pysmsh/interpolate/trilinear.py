@@ -109,8 +109,13 @@ class CenteredVectorInterpolator:
     def cartesian_unit_vector(self, p):
         
         v = self.value(p)
-        v *= 1.0/np.sqrt(v[0]**2 + v[1]**2 + v[2]**2)        
-        return v
+
+        vsqr = v[0]**2 + v[1]**2 + v[2]**2
+
+        if vsqr > 0.0:
+            return v/np.sqrt(vsqr)
+        else:
+            return np.zeros(3)
 
     def cell_size(self, p):
 
@@ -156,8 +161,13 @@ class EdgeStaggeredInterpolator:
     def cartesian_unit_vector(self, p):
         
         v = self.value(p)
-        v *= 1.0/np.sqrt(v[0]**2 + v[1]**2 + v[2]**2)        
-        return v
+
+        vsqr = v[0]**2 + v[1]**2 + v[2]**2
+
+        if vsqr > 0.0:
+            return v/np.sqrt(vsqr)
+        else:
+            return np.zeros(3)
 
     def cell_size(self, p):
 
