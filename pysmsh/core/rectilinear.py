@@ -77,7 +77,16 @@ class RectilinearMeshBase:
         end_idx = self.num_cells - self.num_ghost_cells + 1
 
         return self._coordinates([self.axes[d].edges[beg_idx:end_idx[d]] for d in range(self.ndim)])
-        
+
+    @property
+    def indomain_centers(self):
+        """Returns cell center coordinates of the in-domain region
+        """
+        beg_idx = self.num_ghost_cells
+        end_idx = self.num_cells - self.num_ghost_cells
+
+        return self._coordinates([self.axes[d].centers[beg_idx:end_idx[d]] for d in range(self.ndim)])
+
     def face_center_coords(self, dim):
         """Returns the face-centered coordinates for the faces with normals
         in the dim:th coordinate direction
