@@ -158,7 +158,7 @@ class MidPointStreamLineTracer:
             self._domain_extent_initialized = True
 
         # Starting point
-        x = np.array(start_pt, dtype=numba.float64)
+        x = np.asarray(start_pt).astype(numba.float64)
 
         # Break if point outside
         if not self.is_inside_domain(x):
