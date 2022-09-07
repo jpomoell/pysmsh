@@ -143,11 +143,12 @@ class MidPointStreamLineTracer:
         """Computes the stream line
 
         Args:
-            start_point (array) : Coordinates of the starting point
-            interpolator        : Interpolator class
+            start_point (array) : the coordinate of the starting point
+            interpolator        : interpolator to the vector field
+            integrand           : optional functionoid computing values along the stream line
 
         Returns:
-            Coordinates of the end point of the field line
+            The coordinate of the end point of the field line
         """
 
         if not self._domain_extent_initialized:
@@ -160,13 +161,16 @@ class MidPointStreamLineTracer:
         # Starting point
         x = np.asarray(start_pt).astype(numba.float64)
 
+        # Clear possible previous points
+        if self.record_points:
+            self.points.clear()
+
         # Break if point outside
         if not self.is_inside_domain(x):
             return x
 
-        # Record point
+        # Record starting point (known to be inside the domain)
         if self.record_points:
-            self.points.clear()
             self.points.append(np.copy(x))
 
         # Value of path integral
