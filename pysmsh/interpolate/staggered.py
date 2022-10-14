@@ -55,8 +55,10 @@ class FaceStaggeredInterpolator:
     data : numba.types.UniTuple(numba.types.Array(numba.float64, 3, "C"), 3)
     
     div_free_interpolation : bool
+
+    limit : bool
     
-    def __init__(self, field, div_free_interpolation=True):
+    def __init__(self, field, div_free_interpolation=True, limit=False):
         
         self.a = ReconstructionMoments()
         self.b = ReconstructionMoments()
@@ -76,6 +78,7 @@ class FaceStaggeredInterpolator:
         self.indomain_extent = (field.mesh.indomain_extent[0], field.mesh.indomain_extent[1], field.mesh.indomain_extent[2])
                 
         self.div_free_interpolation = div_free_interpolation
+        self.limit = limit
             
     def P1(self, x):
         return x
@@ -161,43 +164,82 @@ class FaceStaggeredInterpolator:
         # Compute derivatives
         # NOTE: these are second-order accurate only for uniform grids
 
-        # dvx/dy  @  (x_{i+1/2}, y_j, z_k)
-        dvxdy_P = (vx[i+1, j+1, k] - vx[i+1, j, k])/(yc[j+1] - yc[j])
-        
-        # dvx/dy  @  (x_{i-1/2}, y_j, z_k)
-        dvxdy_M = (vx[i, j+1, k] - vx[i, j, k])/(yc[j+1] - yc[j])
-        
-        # dvx/dz  @  (x_{i+1/2}, y_j, z_k)
-        dvxdz_P = (vx[i+1, j, k+1] - vx[i+1, j, k])/(zc[k+1] - zc[k])
-        
-        # dvx/dz  @  (x_{i-1/2}, y_j, z_k)
-        dvxdz_M = (vx[i, j, k+1] - vx[i, j, k])/(zc[k+1] - zc[k])
-        
-        
-        # dvy/dx  @  (x_i, y_{j+1/2}, z_k)
-        dvydx_P = (vy[i+1, j+1, k] - vy[i, j+1, k])/(xc[i+1] - xc[i])
-        
-        # dvy/dx  @  (x_i, y_{j-1/2}, z_k)
-        dvydx_M = (vy[i+1, j, k] - vy[i, j, k])/(xc[i+1] - xc[i])
-        
-        # dvy/dz  @  (x_i, y_{j+1/2}, z_k)
-        dvydz_P = (vy[i, j+1, k+1] - vy[i, j+1, k])/(zc[k+1] - zc[k])
-        
-        # dvy/dz  @  (x_i, y_{j-1/2}, z_k)
-        dvydz_M = (vy[i, j, k+1] - vy[i, j, k])/(zc[k+1] - zc[k])
-        
-        
-        # dvy/dx  @  (x_i, y_j, z_{k+1/2})
-        dvzdx_P = (vz[i+1, j, k+1] - vz[i, j, k+1])/(xc[i+1] - xc[i])
-        
-        # dvy/dx  @  (x_i, y_j, z_{k-1/2})
-        dvzdx_M = (vz[i+1, j, k] - vz[i, j, k])/(xc[i+1] - xc[i])
-        
-        # dvz/dy  @  (x_i, y_j, z_{k+1/2})
-        dvzdy_P = (vz[i, j+1, k+1] - vz[i, j, k+1])/(yc[j+1] - yc[j])
-        
-        # dvz/dy  @  (x_i, y_j, z_{k-1/2})
-        dvzdy_M = (vz[i, j+1, k] - vz[i, j, k])/(yc[j+1] - yc[j])
+        if self.limit:
+            dvxdy_P = self.limiter(vx[i+1, j+1, k] - vx[i+1, j, k],
+                                   vx[i+1, j, k] - vx[i+1, j-1, k])/(yc[j+1] - yc[j])
+
+            dvxdy_M = self.limiter(vx[i, j+1, k] - vx[i, j, k],
+                                   vx[i, j, k] - vx[i, j-1, k])/(yc[j+1] - yc[j])
+
+            dvxdz_P = self.limiter(vx[i+1, j, k+1] - vx[i+1, j, k],
+                                   vx[i+1, j, k] - vx[i+1, j, k-1])/(zc[k+1] - zc[k])
+
+            dvxdz_M = self.limiter(vx[i, j, k+1] - vx[i, j, k],
+                                   vx[i, j, k] - vx[i, j, k-1])/(zc[k+1] - zc[k])
+
+
+            dvydx_P = self.limiter(vy[i+1, j+1, k] - vy[i, j+1, k],
+                                   vy[i, j+1, k] - vy[i-1, j+1, k])/(xc[i+1] - xc[i])
+
+            dvydx_M = self.limiter(vy[i+1, j, k] - vy[i, j, k],
+                                   vy[i, j, k] - vy[i-1, j, k])/(xc[i+1] - xc[i])
+
+            dvydz_P = self.limiter(vy[i, j+1, k+1] - vy[i, j+1, k],
+                                   vy[i, j+1, k] - vy[i, j+1, k-1])/(zc[k+1] - zc[k])
+
+            dvydz_M = self.limiter(vy[i, j, k+1] - vy[i, j, k],
+                                   vy[i, j, k] - vy[i, j, k-1])/(zc[k+1] - zc[k])
+
+
+            dvzdx_P = self.limiter(vz[i+1, j, k+1] - vz[i, j, k+1],
+                                   vz[i, j, k+1] - vz[i-1, j, k+1])/(xc[i+1] - xc[i])
+
+            dvzdx_M = self.limiter(vz[i+1, j, k] - vz[i, j, k],
+                                   vz[i, j, k] - vz[i-1, j, k])/(xc[i+1] - xc[i])
+
+            dvzdy_P = self.limiter(vz[i, j+1, k+1] - vz[i, j, k+1],
+                                   vz[i, j, k+1] - vz[i, j-1, k+1])/(yc[j+1] - yc[j])
+
+            dvzdy_M = self.limiter(vz[i, j+1, k] - vz[i, j, k],
+                                   vz[i, j, k] - vz[i, j-1, k])/(yc[j+1] - yc[j])
+        else:
+            # dvx/dy  @  (x_{i+1/2}, y_j, z_k)
+            dvxdy_P = (vx[i+1, j+1, k] - vx[i+1, j, k])/(yc[j+1] - yc[j])
+            
+            # dvx/dy  @  (x_{i-1/2}, y_j, z_k)
+            dvxdy_M = (vx[i, j+1, k] - vx[i, j, k])/(yc[j+1] - yc[j])
+            
+            # dvx/dz  @  (x_{i+1/2}, y_j, z_k)
+            dvxdz_P = (vx[i+1, j, k+1] - vx[i+1, j, k])/(zc[k+1] - zc[k])
+            
+            # dvx/dz  @  (x_{i-1/2}, y_j, z_k)
+            dvxdz_M = (vx[i, j, k+1] - vx[i, j, k])/(zc[k+1] - zc[k])
+            
+            
+            # dvy/dx  @  (x_i, y_{j+1/2}, z_k)
+            dvydx_P = (vy[i+1, j+1, k] - vy[i, j+1, k])/(xc[i+1] - xc[i])
+            
+            # dvy/dx  @  (x_i, y_{j-1/2}, z_k)
+            dvydx_M = (vy[i+1, j, k] - vy[i, j, k])/(xc[i+1] - xc[i])
+            
+            # dvy/dz  @  (x_i, y_{j+1/2}, z_k)
+            dvydz_P = (vy[i, j+1, k+1] - vy[i, j+1, k])/(zc[k+1] - zc[k])
+            
+            # dvy/dz  @  (x_i, y_{j-1/2}, z_k)
+            dvydz_M = (vy[i, j, k+1] - vy[i, j, k])/(zc[k+1] - zc[k])
+            
+            
+            # dvy/dx  @  (x_i, y_j, z_{k+1/2})
+            dvzdx_P = (vz[i+1, j, k+1] - vz[i, j, k+1])/(xc[i+1] - xc[i])
+            
+            # dvy/dx  @  (x_i, y_j, z_{k-1/2})
+            dvzdx_M = (vz[i+1, j, k] - vz[i, j, k])/(xc[i+1] - xc[i])
+            
+            # dvz/dy  @  (x_i, y_j, z_{k+1/2})
+            dvzdy_P = (vz[i, j+1, k+1] - vz[i, j, k+1])/(yc[j+1] - yc[j])
+            
+            # dvz/dy  @  (x_i, y_j, z_{k-1/2})
+            dvzdy_M = (vz[i, j+1, k] - vz[i, j, k])/(yc[j+1] - yc[j])
        
         
         # Moments of the x-component of the field
@@ -257,3 +299,12 @@ class FaceStaggeredInterpolator:
             self.a.constant -= self.a.xx*dx*dx/4.0
             self.b.constant -= self.b.yy*dy*dy/4.0
             self.c.constant -= self.c.zz*dz*dz/4.0
+
+    def limiter(self, dp, dm):
+
+        limited_slope = 0.0
+
+        if (dp*dm) > 0.0:
+            limited_slope = 2.0*dp*dm/(dp+dm)
+
+        return limited_slope
