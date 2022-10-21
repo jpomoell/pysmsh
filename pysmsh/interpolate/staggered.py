@@ -91,7 +91,7 @@ class FaceStaggeredInterpolator:
         xi, yj, zk = self.xi, self.yj, self.zk
         
         first_order \
-            = m.constant + m.x*P1(x - xi) + m.xy*P1(y - yj) + m.xz*P1(z - zk)
+            = m.constant + m.x*P1(x - xi) + m.y*P1(y - yj) + m.z*P1(z - zk)
 
         second_order \
             = m.xy*P1(x - xi)*P1(y - yj) \
