@@ -19,6 +19,7 @@ import numba.types
 import numba.experimental.jitclass as jitclass
 
 import pysmsh
+import pysmsh.core
 from pysmsh.core.dinterval import DiscreteInterval
 from pysmsh.core.rectilinear import RectilinearMeshBase
 
